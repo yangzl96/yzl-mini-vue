@@ -1,5 +1,8 @@
 import { extend } from '../shared'
 
+let activeEffect //当前进来的副作用函数
+let shouldTrack // 是否可追踪依赖
+
 class ReactiveEffect {
   private _fn: any
   deps = []
@@ -13,9 +16,19 @@ class ReactiveEffect {
   }
 
   run() {
+    if (!this.active) {
+      return this._fn()
+    }
+
+    // 会收集依赖 shouldTrack 来做区分
+    shouldTrack = true
     // 保存当前实例对象
     activeEffect = this
-    return this._fn()
+    // fn执行就会收集依赖
+    const result = this._fn()
+    // 收集完 及时关闭
+    shouldTrack = false
+    return result
   }
 
   stop() {
@@ -29,14 +42,14 @@ class ReactiveEffect {
   }
 }
 
+// 清空当前依赖
 function cleanupEffect(effect) {
   effect.deps.forEach((dep: any) => {
     dep.delete(effect)
   })
-  effect.deps.length = 0;
+  effect.deps.length = 0
 }
 
-let activeEffect
 export function effect(fn, options: any = {}) {
   const _effect = new ReactiveEffect(fn, options.scheduler)
   // 挂载 options 到 _effect
@@ -50,6 +63,8 @@ export function effect(fn, options: any = {}) {
 
 const targetMap = new WeakMap()
 export function track(target, key) {
+  if (!isTracking()) return
+
   let depsMap = targetMap.get(target)
   if (!depsMap) {
     depsMap = new Map()
@@ -62,10 +77,16 @@ export function track(target, key) {
     depsMap.set(key, dep)
   }
 
-  if (!activeEffect) return
+  // 已经存在
+  if (dep.has(activeEffect)) return
 
   dep.add(activeEffect)
   activeEffect.deps.push(dep)
+}
+
+// 是否在收集依赖
+function isTracking() {
+  return shouldTrack && activeEffect !== undefined
 }
 
 export function trigger(target, key) {
