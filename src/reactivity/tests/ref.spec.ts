@@ -40,7 +40,7 @@ describe('ref', () => {
     expect(dummy).toBe(2)
   })
 
-  it.skip('proxyRefs', () => {
+  it('proxyRefs', () => {
     const user = {
       age: ref(10),
       name: 'xiaohong',

@@ -3,7 +3,7 @@ import { extend } from '../shared'
 let activeEffect //当前进来的副作用函数
 let shouldTrack // 是否可追踪依赖
 
-class ReactiveEffect {
+export class ReactiveEffect {
   private _fn: any
   deps = []
   active = true
