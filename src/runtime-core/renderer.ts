@@ -25,7 +25,8 @@ function processComponent(vnode, container) {
 
 // 挂载元素
 function mountElement(vnode, container) {
-  const el = document.createElement(vnode.type)
+  // 获取 el 存 el
+  const el = (vnode.el = document.createElement(vnode.type))
 
   // string | array
   const { children } = vnode
@@ -53,16 +54,23 @@ function mountChildren(vnode, container) {
 }
 
 // 挂载组件
-function mountComponent(vnode, container) {
+function mountComponent(initialVNode, container) {
   // 创建组件实例
-  const instance = createComponentInstance(vnode)
+  const instance = createComponentInstance(initialVNode)
   setupComponent(instance)
   // 调用render
-  setupRenderEffect(instance, container)
+  setupRenderEffect(instance, initialVNode, container)
 }
 
-function setupRenderEffect(instance, container) {
-  const subTree = instance.render()
+function setupRenderEffect(instance, initialVNode, container) {
+  // 取出上下文
+  const { proxy } = instance
+  // 给render绑定上下文
+  const subTree = instance.render.call(proxy)
 
   patch(subTree, container)
+
+  // 所有的element初始化完成后
+  // 根的el 赋值给组件
+  initialVNode.el = subTree.el
 }
