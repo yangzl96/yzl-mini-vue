@@ -1,5 +1,4 @@
 import { PublicInstanceProxyHandlers } from './componentPublicInstance'
-import { render } from './renderer'
 export function createComponentInstance(vnode) {
   const component = {
     vnode,

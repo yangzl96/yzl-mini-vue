@@ -4,7 +4,11 @@ import { h } from '../../lib/guide-mini-vue.esm.js'
 export const App = {
   // render里面的变量 来自 setup的返回值
   render() {
-    return h("div", { id: 'root', class: ['red', 'grey'] },
+    return h("div", {
+      id: 'root',
+      class: ['red', 'grey'],
+      onClick: () => { console.log('cccc') }
+    },
       'hi，' + this.msg
       // [
       //   h('p', { class: "red" }, 'hi'),
