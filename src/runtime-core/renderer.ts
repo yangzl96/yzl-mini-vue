@@ -1,5 +1,6 @@
 import { createComponentInstance, setupComponent } from './component'
 import { ShapeFlags } from '../shared/shapeFlags'
+import { Fragment, Text } from './vnode'
 
 export function render(vnode, container) {
   // patch
@@ -8,20 +9,47 @@ export function render(vnode, container) {
 
 function patch(vnode, container) {
   // 区分类型
-  const { shapeFlag } = vnode
+  const { type, shapeFlag } = vnode
 
-  // 查找确认类型 用 &
-  if (shapeFlag & ShapeFlags.ELEMENT) {
-    processElement(vnode, container)
-  } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-    processComponent(vnode, container)
+  // fragment -> 只渲染children
+
+  switch (type) {
+    case Fragment:
+      processFragment(vnode, container)
+      break
+    case Text:
+      processText(vnode, container)
+      break
+    default:
+      // 查找确认类型 用 &
+      if (shapeFlag & ShapeFlags.ELEMENT) {
+        processElement(vnode, container)
+      } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+        processComponent(vnode, container)
+      }
+      break
   }
 }
 
+// 处理文本
+function processText(vnode, container) {
+  const { children } = vnode
+  const textNode = (vnode.el = document.createTextNode(children))
+  container.append(textNode)
+}
+
+// 处理占位符
+function processFragment(vnode, conrainer) {
+  // fragment 只渲染子节点
+  mountChildren(vnode, conrainer)
+}
+
+// 处理元素
 function processElement(vnode, container) {
   mountElement(vnode, container)
 }
 
+// 处理组件
 function processComponent(vnode, container) {
   mountComponent(vnode, container)
 }

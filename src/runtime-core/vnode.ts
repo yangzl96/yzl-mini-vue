@@ -1,5 +1,8 @@
 import { ShapeFlags } from '../shared/shapeFlags'
 
+export const Fragment = Symbol('Fragment')
+export const Text = Symbol('Text')
+
 export function createVNode(type, props?, children?) {
   const vnode = {
     type,
@@ -28,6 +31,10 @@ export function createVNode(type, props?, children?) {
   }
 
   return vnode
+}
+
+export function createTextVNode(text) {
+  return createVNode(Text, {}, text)
 }
 
 // vnode的类型 就 string 和 有状态组件
