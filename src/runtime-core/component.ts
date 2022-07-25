@@ -3,18 +3,20 @@ import { PublicInstanceProxyHandlers } from './componentPublicInstance'
 import { shallowReadonly } from '../reactivity/reactive'
 import { emit } from './componentEmit'
 import { initSlot } from './componentSlot'
-export function createComponentInstance(vnode) {
+export function createComponentInstance(vnode, parent) {
   const component = {
     vnode,
     type: vnode.type,
     setupState: {},
     props: {},
     slots: {},
+    provides: parent ? parent.provides : {},
+    parent,
     emit: () => {},
   }
 
   // 默认给emit 先填充一个参数 后面使用就只需要 emit('xxx')
-  component.emit = emit.bind(null, component)
+  component.emit = emit.bind(null, component) as any
 
   return component
 }
