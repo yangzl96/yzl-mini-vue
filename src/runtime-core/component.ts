@@ -1,20 +1,27 @@
 import { initProps } from './componentProps'
 import { PublicInstanceProxyHandlers } from './componentPublicInstance'
 import { shallowReadonly } from '../reactivity/reactive'
+import { emit } from './componentEmit'
+import { initSlot } from './componentSlot'
 export function createComponentInstance(vnode) {
   const component = {
     vnode,
     type: vnode.type,
     setupState: {},
     props: {},
+    slots: {},
+    emit: () => {},
   }
+
+  // 默认给emit 先填充一个参数 后面使用就只需要 emit('xxx')
+  component.emit = emit.bind(null, component)
 
   return component
 }
 
 export function setupComponent(instance) {
   initProps(instance, instance.vnode.props)
-  // initSlot
+  initSlot(instance, instance.vnode.children)
 
   // 初始化一个有状态的component
   setupStatefulComponent(instance)
@@ -30,8 +37,10 @@ function setupStatefulComponent(instance) {
 
   if (setup) {
     // function object
-    // props 只读
-    const setupResult = setup(shallowReadonly(instance.props))
+    // props 只读 传入配置项 emit......
+    const setupResult = setup(shallowReadonly(instance.props), {
+      emit: instance.emit,
+    })
 
     handleSetupResult(instance, setupResult)
   }
