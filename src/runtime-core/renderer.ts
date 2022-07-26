@@ -3,6 +3,7 @@ import { ShapeFlags } from '../shared/shapeFlags'
 import { Fragment, Text } from './vnode'
 import { createAppAPI } from './createApp'
 import { effect } from '../reactivity/effect'
+import { EMPTY_OBJECT } from '../runtime-dom'
 
 // 自定义渲染函数
 export function createRenderer(options) {
@@ -68,6 +69,36 @@ export function createRenderer(options) {
   function patchElement(n1, n2, container) {
     console.log(n1)
     console.log(n2)
+    const oldProps = n1.props || EMPTY_OBJECT
+    const newProps = n2.props || EMPTY_OBJECT
+
+    // n2一开始是没有el的，这里先复用n1的
+    const el = (n2.el = n1.el)
+
+    patchProps(el, oldProps, newProps)
+  }
+
+  function patchProps(el, oldProps, newProps) {
+    if (oldProps !== newProps) {
+      // 遍历新的 添加 覆盖
+      for (const key in newProps) {
+        const prevProp = oldProps[key]
+        const nextProp = newProps[key]
+
+        if (prevProp !== nextProp) {
+          hostPatchProp(el, key, prevProp, nextProp)
+        }
+      }
+
+      if (oldProps !== EMPTY_OBJECT) {
+        // 遍历老的 删除不存在的
+        for (const key in oldProps) {
+          if (!(key in newProps)) {
+            hostPatchProp(el, key, oldProps[key], null)
+          }
+        }
+      }
+    }
   }
 
   // 处理组件
@@ -94,7 +125,7 @@ export function createRenderer(options) {
     const { props } = vnode
     for (const key in props) {
       const val = props[key]
-      hostPatchProp(el, key, val)
+      hostPatchProp(el, key, null, val)
     }
 
     // container.append(el)

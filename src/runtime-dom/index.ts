@@ -1,16 +1,21 @@
 import { createRenderer } from '../runtime-core'
 
+export const EMPTY_OBJECT = {}
+
 function createElement(type) {
   return document.createElement(type)
 }
 
-function patchProp(el, key, val) {
+function patchProp(el, key, prevVal, nextVal) {
   const isOn = (key) => /^on[A-Z]/.test(key)
   if (isOn(key)) {
     const event = key.slice(2).toLowerCase()
-    el.addEventListener(event, val)
+    el.addEventListener(event, nextVal)
+  } else if (nextVal === undefined || nextVal === null) {
+    el.removeAttribute(key)
+  } else {
+    el.setAttribute(key, nextVal)
   }
-  el.setAttribute(key, val)
 }
 
 function insert(el, parent) {
