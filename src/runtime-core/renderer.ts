@@ -199,6 +199,93 @@ export function createRenderer(options) {
         hostRemove(c1[i].el)
         i++
       }
+    } else {
+      // 中间部分 乱序比对
+      let s1 = i
+      let s2 = i
+
+      const toBePatched = e2 - s2 + 1 //要被处理的数量
+      let patched = 0 //已经被处理的
+      // 使用新的节点：生成 key => index 映射
+      const keyToNewIndexMap = new Map()
+
+      let moved = false
+      let maxNewIndexSoFar = 0
+      const newIndexToOldIndexMap = new Array(toBePatched)
+      for (let i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
+
+      for (let i = s2; i <= e2; i++) {
+        const nextChild = c2[i]
+        keyToNewIndexMap.set(nextChild.key, i)
+      }
+
+      // 遍历老的 去查找新的
+      let newIndex
+      for (let i = s1; i <= e1; i++) {
+        const prevChild = c1[i]
+        //5.1.1优化点
+        if (patched >= toBePatched) {
+          hostRemove(prevChild.el)
+          continue
+        }
+
+        if (prevChild.key != null) {
+          newIndex = keyToNewIndexMap.get(prevChild.key)
+        } else {
+          // 没有Key
+          for (let j = s2; j < e2; j++) {
+            if (isSameVNodeType(prevChild, c2[j])) {
+              newIndex = j
+              break
+            }
+          }
+        }
+        // undefined 就是在新的里面没有找到
+        if (newIndex === undefined) {
+          hostRemove(prevChild.el)
+        } else {
+          // 判断是否移动了
+          if (newIndex >= maxNewIndexSoFar) {
+            maxNewIndexSoFar = newIndex
+          } else {
+            // 移动了： 新的节点索引 < 上次的索引
+            moved = true
+          }
+
+          // 避免i=0 所以+1（0表示未被处理过，需要新增的）
+          newIndexToOldIndexMap[newIndex - s2] = i + 1
+          patch(prevChild, c2[newIndex], container, parentComponent, null)
+          patched++
+        }
+      }
+
+      // 获取最长递增子序列对应的索引
+      // 优化：只有真的移动了才去做计算 节约性能
+      const increasingNewIndexSequence = moved
+        ? getSequence(newIndexToOldIndexMap)
+        : []
+
+      let j = increasingNewIndexSequence.length - 1
+      for (let i = toBePatched - 1; i >= 0; i--) {
+        // 找在新节点里面对应的索引
+        const nextIndex = i + s2
+        // 获取新节点元素
+        const nextChild = c2[nextIndex]
+        // 找锚点 看下一个元素是否存在
+        const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : null
+
+        if (newIndexToOldIndexMap[i] === 0) {
+          // 需要新增的节点
+          patch(null, nextChild, container, parentComponent, anchor)
+        } else if (moved) {
+          if (i !== increasingNewIndexSequence[j]) {
+            // 移动位置
+            hostInsert(nextChild.el, container, anchor)
+          } else {
+            j--
+          }
+        }
+      }
     }
   }
 
@@ -282,6 +369,48 @@ export function createRenderer(options) {
         patch(prevSubTree, subTree, container, instance, anchor)
       }
     })
+  }
+
+  // 获取最长递增子序列
+  function getSequence(arr: number[]): number[] {
+    const p = arr.slice()
+    const result = [0]
+    let i, j, u, v, c
+    const len = arr.length
+    for (i = 0; i < len; i++) {
+      const arrI = arr[i]
+      if (arrI !== 0) {
+        j = result[result.length - 1]
+        if (arr[j] < arrI) {
+          p[i] = j
+          result.push(i)
+          continue
+        }
+        u = 0
+        v = result.length - 1
+        while (u < v) {
+          c = (u + v) >> 1
+          if (arr[result[c]] < arrI) {
+            u = c + 1
+          } else {
+            v = c
+          }
+        }
+        if (arrI < arr[result[u]]) {
+          if (u > 0) {
+            p[i] = result[u - 1]
+          }
+          result[u] = i
+        }
+      }
+    }
+    u = result.length
+    v = result[u - 1]
+    while (u-- > 0) {
+      result[u] = v
+      v = p[v]
+    }
+    return result
   }
 
   return {
