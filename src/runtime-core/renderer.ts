@@ -5,6 +5,8 @@ import { createAppAPI } from './createApp'
 import { effect } from '../reactivity/effect'
 import { EMPTY_OBJECT } from '../runtime-dom'
 import { isSameVNodeType } from '../shared'
+import { shouldUpdateComponent } from './componentUpdateUtils'
+import { queueJobs } from './scheduler'
 
 // 自定义渲染函数
 export function createRenderer(options) {
@@ -298,7 +300,24 @@ export function createRenderer(options) {
 
   // 处理组件
   function processComponent(n1, n2, container, parentComponent, anchor) {
-    mountComponent(n2, container, parentComponent, anchor)
+    if (!n1) {
+      mountComponent(n2, container, parentComponent, anchor)
+    } else {
+      updateComponent(n1, n2)
+    }
+  }
+
+  // 更新组件
+  function updateComponent(n1, n2) {
+    const instance = (n2.component = n1.component)
+    if (shouldUpdateComponent(n1, n2)) {
+      instance.next = n2 //保存下次要更新的虚拟节点
+      instance.update()
+    } else {
+      n2.component = n1.component
+      n2.el = n1.el
+      instance.vnode = n2
+    }
   }
 
   // 挂载元素
@@ -337,38 +356,59 @@ export function createRenderer(options) {
   // 挂载组件
   function mountComponent(initialVNode, container, parentComponent, anchor) {
     // 创建组件实例
-    const instance = createComponentInstance(initialVNode, parentComponent)
+    const instance = (initialVNode.component = createComponentInstance(
+      initialVNode,
+      parentComponent
+    ))
     setupComponent(instance)
     // 调用render
     setupRenderEffect(instance, initialVNode, container, anchor)
   }
 
   function setupRenderEffect(instance, initialVNode, container, anchor) {
-    effect(() => {
-      // 初始化
-      if (!instance.isMounted) {
-        // 取出上下文
-        const { proxy } = instance
-        // 给render绑定上下文
-        // 存住subTree下次对比
-        const subTree = (instance.subTree = instance.render.call(proxy))
+    instance.update = effect(
+      () => {
+        // 初始化
+        if (!instance.isMounted) {
+          // 取出上下文
+          const { proxy } = instance
+          // 给render绑定上下文
+          // 存住subTree下次对比
+          const subTree = (instance.subTree = instance.render.call(proxy))
 
-        patch(null, subTree, container, instance, anchor)
+          patch(null, subTree, container, instance, anchor)
 
-        // 所有的element初始化完成后
-        // 根的el 赋值给组件
-        initialVNode.el = subTree.el
-        instance.isMounted = true
-      } else {
-        // 更新
-        const { proxy } = instance
-        const subTree = instance.render.call(proxy)
-        const prevSubTree = instance.subTree
-        instance.subTree = subTree
+          // 所有的element初始化完成后
+          // 根的el 赋值给组件
+          initialVNode.el = subTree.el
+          instance.isMounted = true
+        } else {
+          // 更新
+          const { proxy, next, vnode } = instance
+          if (next) {
+            next.el = vnode.el
+            // 更新当前组件实例上的属性
+            updateComponentPreRender(instance, next)
+          }
+          const subTree = instance.render.call(proxy)
+          const prevSubTree = instance.subTree
+          instance.subTree = subTree
 
-        patch(prevSubTree, subTree, container, instance, anchor)
+          patch(prevSubTree, subTree, container, instance, anchor)
+        }
+      },
+      {
+        scheduler() {
+          queueJobs(instance.update)
+        },
       }
-    })
+    )
+  }
+
+  function updateComponentPreRender(instance, nextVNode) {
+    instance.vnode = nextVNode
+    instance.next = null
+    instance.props = nextVNode.props
   }
 
   // 获取最长递增子序列
