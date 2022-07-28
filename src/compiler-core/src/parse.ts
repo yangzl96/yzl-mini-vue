@@ -1,5 +1,10 @@
 import { NodeTypes } from './ast'
 
+const enum TagType {
+  Start,
+  End,
+}
+
 export function baseParse(content) {
   const context = createParserContext(content)
 
@@ -10,13 +15,19 @@ function parseChildren(context) {
   const nodes: any = []
 
   let node
-  if (context.source.startsWith('{{')) {
+  const s = context.source
+  if (s.startsWith('{{')) {
     node = parseInterpolation(context)
+  } else if (s[0] === '<') {
+    if (/[a-z]/i.test(s[1])) {
+      node = parseElement(context)
+    }
   }
   nodes.push(node)
   return nodes
 }
 
+// 解析插值表达式
 function parseInterpolation(context) {
   //{{message}}
 
@@ -65,4 +76,34 @@ function createRoot(children) {
 // 切割
 function advanceBy(context: any, length: number) {
   context.source = context.source.slice(length)
+}
+
+// 解析element
+function parseElement(context: any) {
+  // 解析开始标签
+  const element = parseTag(context, TagType.Start)
+  // 解析结束标签
+  parseTag(context, TagType.End)
+  console.log('-------------------', context.source)
+  return element
+}
+
+// 解析标签
+function parseTag(context: any, type: TagType) {
+  // <div></div>
+  // 匹配开始或者结束标签
+  const match: any = /^<\/?([a-z]*)/i.exec(context.source)
+  console.log(match)
+  const tag = match[1]
+  // 删除 <div
+  advanceBy(context, match[0].length)
+  // 删除 >
+  advanceBy(context, 1)
+
+  if (type === TagType.End) return
+  
+  return {
+    type: NodeTypes.ELEMENT,
+    tag,
+  }
 }
