@@ -23,6 +23,11 @@ function parseChildren(context) {
       node = parseElement(context)
     }
   }
+  // 没有值 当成文本处理
+  if (!node) {
+    node = parseText(context)
+  }
+
   nodes.push(node)
   return nodes
 }
@@ -101,9 +106,23 @@ function parseTag(context: any, type: TagType) {
   advanceBy(context, 1)
 
   if (type === TagType.End) return
-  
+
   return {
     type: NodeTypes.ELEMENT,
     tag,
+  }
+}
+
+// 解析文本
+function parseText(context: any): any {
+  // 获取内容
+  const content = context.source.slice(0, context.source.length)
+
+  // 裁剪
+  advanceBy(context, content.length)
+
+  return {
+    type: NodeTypes.TEXT,
+    content,
   }
 }
