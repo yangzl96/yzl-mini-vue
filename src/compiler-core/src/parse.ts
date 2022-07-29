@@ -100,6 +100,7 @@ function createParserContext(content: any) {
 function createRoot(children) {
   return {
     children,
+    type: NodeTypes.ROOT,
   }
 }
 
@@ -153,7 +154,6 @@ function parseTag(context: any, type: TagType) {
   advanceBy(context, match[0].length)
   // 删除 >
   advanceBy(context, 1)
-
 
   if (type === TagType.End) return
 

@@ -1,7 +1,11 @@
+import { NodeTypes } from './ast'
+import { helperMapName, TO_DISPLAY_STRING } from './runtimeHelpers'
+
 export function generate(ast) {
   const context = createCodegenContext()
   const { push } = context
-  push('return ')
+
+  genFunctionPreamble(ast, context)
 
   const functionName = 'render'
   const args = ['_ctx', '_cache']
@@ -10,7 +14,7 @@ export function generate(ast) {
   push(`function ${functionName}(${signature}){`)
 
   push(`return`)
-  genCode(ast.codegenNode, context)
+  genNode(ast.codegenNode, context)
   push('}')
 
   return {
@@ -18,16 +22,65 @@ export function generate(ast) {
   }
 }
 
-function genCode(node, context) {
+// 生成前置导入
+function genFunctionPreamble(ast, context) {
+  const { push } = context
+  const VueBinging = 'Vue'
+  const aliasHelper = (s) => `${helperMapName[s]}:_${helperMapName[s]}`
+  if (ast.helpers.length > 0) {
+    push(`const { ${ast.helpers.map(aliasHelper).join(', ')} } = ${VueBinging}`)
+  }
+  push('\n')
+  push('return ')
+}
+
+// 生成node
+function genNode(node, context) {
+  switch (node.type) {
+    case NodeTypes.TEXT:
+      genText(node, context)
+      break
+    case NodeTypes.INTERPOLATION:
+      genInterpolation(node, context)
+      break
+    case NodeTypes.SIMPLE_EXPRESSION:
+      genExpression(node, context)
+      break
+    default:
+      break
+  }
+}
+
+// 生成文本
+function genText(node: any, context: any) {
   const { push } = context
   push(`'${node.content}'`)
 }
 
+// 生成插值
+function genInterpolation(node: any, context: any) {
+  const { push, helper } = context
+
+  push(`${helper(TO_DISPLAY_STRING)}(`)
+  genNode(node.content, context)
+  push(')')
+}
+
+// 生成简单表达式
+function genExpression(node: any, context: any) {
+  const { push } = context
+  push(`${node.content}`)
+}
+
+// 创建上下文
 function createCodegenContext() {
   const context = {
     code: '',
     push(source) {
       context.code += source
+    },
+    helper(key) {
+      return `_${helperMapName[key]}`
     },
   }
   return context
