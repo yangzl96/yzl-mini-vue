@@ -80,11 +80,8 @@ function parseInterpolation(context) {
   const rawContent = parseTextData(context, rawContentLength)
   const content = rawContent.trim()
 
-  console.log('插值---------------------', content)
-  console.log(context)
   // 处理完删除 尾部的 }}
   advanceBy(context, closeDelimiter.length)
-  console.log(context)
   return {
     type: NodeTypes.INTERPOLATION,
     content: {
@@ -151,14 +148,12 @@ function parseTag(context: any, type: TagType) {
   // <div></div>
   // 匹配开始或者结束标签
   const match: any = /^<\/?([a-z]*)/i.exec(context.source)
-  console.log(match)
   const tag = match[1]
   // 删除 <div
   advanceBy(context, match[0].length)
   // 删除 >
   advanceBy(context, 1)
 
-  console.log(context)
 
   if (type === TagType.End) return
 
@@ -183,8 +178,6 @@ function parseText(context: any): any {
   // 获取内容
   const content = parseTextData(context, endIndex)
 
-  console.log('text:  ------------------', content)
-  console.log(context)
   return {
     type: NodeTypes.TEXT,
     content,

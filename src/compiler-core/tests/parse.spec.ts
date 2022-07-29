@@ -86,7 +86,7 @@ test('nested element', () => {
   })
 })
 
-test.only('should throw error when lack end tag', () => {
+test('should throw error when lack end tag', () => {
   expect(() => {
     baseParse('<div><span></div>')
   }).toThrow(`缺少结束标签:span`)
