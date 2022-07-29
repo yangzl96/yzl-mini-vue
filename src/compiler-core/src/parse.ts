@@ -7,29 +7,55 @@ const enum TagType {
 
 export function baseParse(content) {
   const context = createParserContext(content)
-
-  return createRoot(parseChildren(context))
+  return createRoot(parseChildren(context, []))
 }
 
-function parseChildren(context) {
+function parseChildren(context, ancestors) {
   const nodes: any = []
 
-  let node
+  while (!isEnd(context, ancestors)) {
+    let node
+    const s = context.source
+    if (s.startsWith('{{')) {
+      // 处理插值
+      node = parseInterpolation(context)
+    } else if (s[0] === '<') {
+      // 解析元素
+      if (/[a-z]/i.test(s[1])) {
+        node = parseElement(context, ancestors)
+      }
+    }
+    // 没有值 当成文本处理
+    if (!node) {
+      node = parseText(context)
+    }
+
+    nodes.push(node)
+  }
+  return nodes
+}
+
+// 是否终止
+function isEnd(context, ancestors) {
   const s = context.source
-  if (s.startsWith('{{')) {
-    node = parseInterpolation(context)
-  } else if (s[0] === '<') {
-    if (/[a-z]/i.test(s[1])) {
-      node = parseElement(context)
+  // </div>
+  if (s.startsWith('</')) {
+    // 从后往前查找对应的相同的tag
+    for (let i = ancestors.length - 1; i >= 0; i--) {
+      const tag = ancestors[i].tag
+      if (startsWithEndTagOpen(s, tag)) {
+        return true
+      }
     }
   }
-  // 没有值 当成文本处理
-  if (!node) {
-    node = parseText(context)
-  }
+  // // 2. 遇到结束标签 同时只剩下闭合标签了
+  // if (parentTag && s.startsWith(`</${parentTag}>`)) {
+  //   console.log('--------------------isover')
+  //   return true
+  // }
 
-  nodes.push(node)
-  return nodes
+  // // 1. source有值
+  return !s
 }
 
 // 解析插值表达式
@@ -51,12 +77,14 @@ function parseInterpolation(context) {
   // 计算内容长度
   const rawContentLength = closeIndex - openDelimiter.length
   // 获取内容
-  const rawContent = context.source.slice(0, rawContentLength)
+  const rawContent = parseTextData(context, rawContentLength)
   const content = rawContent.trim()
 
-  // 处理完删除
-  advanceBy(context, rawContentLength + closeDelimiter.length)
-
+  console.log('插值---------------------', content)
+  console.log(context)
+  // 处理完删除 尾部的 }}
+  advanceBy(context, closeDelimiter.length)
+  console.log(context)
   return {
     type: NodeTypes.INTERPOLATION,
     content: {
@@ -83,14 +111,39 @@ function advanceBy(context: any, length: number) {
   context.source = context.source.slice(length)
 }
 
+function parseTextData(context, length) {
+  const content = context.source.slice(0, length)
+
+  advanceBy(context, length)
+  return content
+}
+
 // 解析element
-function parseElement(context: any) {
+function parseElement(context: any, ancestors) {
   // 解析开始标签
-  const element = parseTag(context, TagType.Start)
-  // 解析结束标签
-  parseTag(context, TagType.End)
-  console.log('-------------------', context.source)
+  const element: any = parseTag(context, TagType.Start)
+  // 入栈
+  ancestors.push(element)
+  // 处理孩子
+  element.children = parseChildren(context, ancestors)
+  // 处理完出栈
+  ancestors.pop()
+
+  // 解析结束标签 标签相互匹配才处理
+  if (startsWithEndTagOpen(context.source, element.tag)) {
+    parseTag(context, TagType.End)
+  } else {
+    throw new Error(`缺少结束标签:${element.tag}`)
+  }
+
   return element
+}
+
+function startsWithEndTagOpen(source, tag) {
+  return (
+    source.startsWith('</') &&
+    source.slice(2, 2 + tag.length).toLowerCase() === tag.toLowerCase()
+  )
 }
 
 // 解析标签
@@ -105,6 +158,8 @@ function parseTag(context: any, type: TagType) {
   // 删除 >
   advanceBy(context, 1)
 
+  console.log(context)
+
   if (type === TagType.End) return
 
   return {
@@ -115,12 +170,21 @@ function parseTag(context: any, type: TagType) {
 
 // 解析文本
 function parseText(context: any): any {
+  let endIndex = context.source.length
+  let endTokens = ['{{', '<']
+
+  for (let i = 0; i < endTokens.length; i++) {
+    const index = context.source.indexOf(endTokens[i])
+    if (index !== -1 && endIndex > index) {
+      // 碰到文本中的 插值就结束
+      endIndex = index
+    }
+  }
   // 获取内容
-  const content = context.source.slice(0, context.source.length)
+  const content = parseTextData(context, endIndex)
 
-  // 裁剪
-  advanceBy(context, content.length)
-
+  console.log('text:  ------------------', content)
+  console.log(context)
   return {
     type: NodeTypes.TEXT,
     content,
