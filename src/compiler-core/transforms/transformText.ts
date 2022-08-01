@@ -1,11 +1,9 @@
 import { NodeTypes } from '../src/ast'
+import { isText } from '../src/utils'
 
 // 复合表达式类型
 
 export function transformText(node) {
-  function isText(node) {
-    return node.type === NodeTypes.TEXT || node.type === NodeTypes.INTERPOLATION
-  }
   if (node.type === NodeTypes.ELEMENT) {
     return () => {
       const { children } = node

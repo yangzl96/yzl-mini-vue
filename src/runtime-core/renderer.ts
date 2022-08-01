@@ -374,7 +374,10 @@ export function createRenderer(options) {
           const { proxy } = instance
           // 给render绑定上下文
           // 存住subTree下次对比
-          const subTree = (instance.subTree = instance.render.call(proxy))
+          const subTree = (instance.subTree = instance.render.call(
+            proxy,
+            proxy
+          ))
 
           patch(null, subTree, container, instance, anchor)
 
@@ -390,7 +393,7 @@ export function createRenderer(options) {
             // 更新当前组件实例上的属性
             updateComponentPreRender(instance, next)
           }
-          const subTree = instance.render.call(proxy)
+          const subTree = instance.render.call(proxy, proxy)
           const prevSubTree = instance.subTree
           instance.subTree = subTree
 

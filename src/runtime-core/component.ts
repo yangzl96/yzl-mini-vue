@@ -4,6 +4,7 @@ import { shallowReadonly } from '../reactivity/reactive'
 import { emit } from './componentEmit'
 import { initSlot } from './componentSlot'
 import { proxyRefs } from '../reactivity'
+import { computed } from '../reactivity/computed'
 export function createComponentInstance(vnode, parent) {
   const component = {
     vnode,
@@ -67,6 +68,14 @@ function handleSetupResult(instance, setupResult) {
 function finishComponentSetup(instance) {
   const Component = instance.type
 
+  // 存在template
+  if (compiler && !Component.render) {
+    if (Component.template) {
+      Component.render = compiler(Component.template)
+    }
+  }
+
+  // 没有template
   instance.render = Component.render
 }
 
@@ -77,4 +86,10 @@ export function getCurrentInstance() {
 
 export function setCurrentInstance(instance) {
   currentInstance = instance
+}
+
+let compiler
+
+export function registerRuntimeCompiler(_compiler) {
+  compiler = _compiler
 }
